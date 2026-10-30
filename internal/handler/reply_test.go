@@ -12,6 +12,8 @@ type replySender struct {
 	keyboardCalls int
 	plainCalls    int
 	keyboardErr   error
+	content       string
+	eventID       string
 }
 
 func (s *replySender) SendGroupMessage(context.Context, string, string, string) error {
@@ -26,9 +28,22 @@ func (s *replySender) SendGroupMessageForInteraction(context.Context, string, st
 	s.plainCalls++
 	return nil
 }
-func (s *replySender) SendGroupKeyboardMessageForInteraction(context.Context, string, string, qq.Keyboard, string) error {
+func (s *replySender) SendGroupKeyboardMessageForInteraction(_ context.Context, _ string, content string, _ qq.Keyboard, eventID string) error {
 	s.keyboardCalls++
+	s.content = content
+	s.eventID = eventID
 	return s.keyboardErr
+}
+
+func TestSendGroupReplyMentionsUserAndRemovesDuplicateSiteChoices(t *testing.T) {
+	sender := &replySender{}
+	err := SendGroupReply(context.Background(), sender, "group", siteSelectionPrompt(), "", "gateway-event", "member")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sender.content != "<@member> 请选择要使用的站点：" || sender.eventID != "gateway-event" || sender.plainCalls != 0 {
+		t.Fatalf("unexpected keyboard reply: %+v", sender)
+	}
 }
 
 func TestSendGroupReplyFallsBackToPlainTextWhenKeyboardFails(t *testing.T) {
