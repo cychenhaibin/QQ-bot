@@ -25,11 +25,11 @@ func TestKeyboardForPromptBuildsSiteAndReplacementButtons(t *testing.T) {
 
 func TestKeyboardForPromptBuildsDynamicAIButtons(t *testing.T) {
 	groupKeyboard, ok := KeyboardForPrompt("请选择使用哪个分组：free、pro\n未在 API 密钥中创建的分组将自动创建。发送“停”将停止本轮对话。")
-	if !ok || len(groupKeyboard.Content.Rows[0].Buttons) != 3 {
+	if !ok || len(groupKeyboard.Content.Rows) != 3 || len(groupKeyboard.Content.Rows[0].Buttons) != 1 {
 		t.Fatalf("group keyboard = %#v, %v", groupKeyboard, ok)
 	}
 	modelKeyboard, ok := KeyboardForPrompt("pro分组下有以下模型请先选择：gpt-4、gpt-5")
-	if !ok || len(modelKeyboard.Content.Rows[0].Buttons) != 2 {
+	if !ok || len(modelKeyboard.Content.Rows) != 3 || len(modelKeyboard.Content.Rows[0].Buttons) != 1 {
 		t.Fatalf("model keyboard = %#v, %v", modelKeyboard, ok)
 	}
 	if got := modelKeyboard.Content.Rows[0].Buttons[0].Action.Data; got != "gpt-4" {

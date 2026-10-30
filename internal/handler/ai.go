@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 const aiSessionTTL = 30 * time.Minute
 const aiMaxHistoryMessages = 40
+const aiChoicesPerPage = 2
 
 type AIAPI interface {
 	ListAIGroups(context.Context, newapi.AIRequest) ([]newapi.AIGroup, error)
@@ -29,6 +31,7 @@ const (
 )
 
 type aiSession struct {
+	Page      int
 	Stage     aiSessionStage
 	Groups    []newapi.AIGroup
 	Group     string
@@ -84,6 +87,23 @@ func (h *AIHandler) Handle(ctx context.Context, event qq.GroupMessage) (string, 
 	if !ok {
 		return "", nil
 	}
+	if (session.Stage == aiAwaitGroup || session.Stage == aiAwaitModel) && (content == "上一页" || content == "下一页") {
+		count := len(session.Groups)
+		if session.Stage == aiAwaitModel {
+			count = len(findModels(session.Groups, session.Group))
+		}
+		if content == "上一页" {
+			session.Page--
+		} else {
+			session.Page++
+		}
+		session.Page = max(0, min(session.Page, max(0, (count-1)/aiChoicesPerPage)))
+		h.put(key, session)
+		if session.Stage == aiAwaitGroup {
+			return formatAIGroupPage(session.Groups, session.Page), nil
+		}
+		return formatAIModelPage(newapi.AIGroup{Group: session.Group, Models: findModels(session.Groups, session.Group)}, session.Page), nil
+	}
 	switch session.Stage {
 	case aiAwaitGroup:
 		for _, group := range session.Groups {
@@ -95,6 +115,7 @@ func (h *AIHandler) Handle(ctx context.Context, event qq.GroupMessage) (string, 
 				return "AI 分组初始化失败，请稍后重试。", err
 			}
 			session.Stage, session.Group, session.APIKey = aiAwaitModel, group.Group, access.APIKey
+			session.Page = 0
 			h.put(key, session)
 			return formatAIModelPrompt(group), nil
 		}
@@ -171,15 +192,43 @@ func (h *AIHandler) hasSession(event qq.GroupMessage) bool {
 }
 
 func formatAIGroupPrompt(groups []newapi.AIGroup) string {
+	return formatAIGroupPage(groups, 0)
+}
+
+func formatAIGroupPage(groups []newapi.AIGroup, page int) string {
 	names := make([]string, 0, len(groups))
 	for _, group := range groups {
 		names = append(names, group.Group)
 	}
-	return "请选择使用哪个分组：" + strings.Join(names, "、") + "\n未在 API 密钥中创建的分组将自动创建。发送“停”将停止本轮对话。"
+	choices, footer := formatAIChoicePage(names, page)
+	return "请选择使用哪个分组：" + choices + "\n未在 API 密钥中创建的分组将自动创建。发送“停”将停止本轮对话。" + footer
 }
 
 func formatAIModelPrompt(group newapi.AIGroup) string {
-	return group.Group + "分组下有以下模型请先选择：" + strings.Join(group.Models, "、")
+	return formatAIModelPage(group, 0)
+}
+
+func formatAIModelPage(group newapi.AIGroup, page int) string {
+	choices, footer := formatAIChoicePage(group.Models, page)
+	return group.Group + "分组下有以下模型请先选择：" + choices + footer
+}
+
+func formatAIChoicePage(choices []string, page int) (string, string) {
+	pages := max(1, (len(choices)+aiChoicesPerPage-1)/aiChoicesPerPage)
+	page = max(0, min(page, pages-1))
+	start := min(page*aiChoicesPerPage, len(choices))
+	end := min(start+aiChoicesPerPage, len(choices))
+	footer := ""
+	if pages > 1 {
+		footer = fmt.Sprintf("\n第 %d/%d 页", page+1, pages)
+		if page > 0 {
+			footer += "\n[上一页]"
+		}
+		if page+1 < pages {
+			footer += "\n[下一页]"
+		}
+	}
+	return strings.Join(choices[start:end], "、"), footer
 }
 
 func findModels(groups []newapi.AIGroup, name string) []string {

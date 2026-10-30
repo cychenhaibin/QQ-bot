@@ -44,3 +44,53 @@ func TestAIHandlerKeepsIndependentUserSessionAndStopsOnCommand(t *testing.T) {
 		t.Fatalf("stop = %q, %v", reply, err)
 	}
 }
+
+type paginatedAIAPI struct{ fakeAIAPI }
+
+func (paginatedAIAPI) ListAIGroups(context.Context, newapi.AIRequest) ([]newapi.AIGroup, error) {
+	groups := make([]newapi.AIGroup, 0, 5)
+	for _, name := range []string{"group-one", "group-two", "group-three", "group-four", "group-five"} {
+		groups = append(groups, newapi.AIGroup{Group: name, Models: []string{"model-one", "model-two", "model-three", "model-four", "model-five"}})
+	}
+	return groups, nil
+}
+
+func TestAIChoicePagesUseOneButtonPerRowWithinQQRowLimit(t *testing.T) {
+	h := NewAIHandler(paginatedAIAPI{})
+	event := qq.GroupMessage{GroupOpenID: "group", MemberOpenID: "member"}
+	commands := []struct{ command, want string }{
+		{"AI 对话", "group-one"},
+		{"上一页", "group-one"},
+		{"下一页", "group-three"},
+		{"下一页", "group-five"},
+		{"下一页", "group-five"},
+		{"上一页", "group-three"},
+		{"group-three", "model-one"},
+		{"下一页", "model-three"},
+		{"下一页", "model-five"},
+	}
+	for _, step := range commands {
+		event.Content = step.command
+		prompt, err := h.Handle(context.Background(), event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		keyboard, ok := KeyboardForPrompt(prompt)
+		if !ok || len(keyboard.Content.Rows) > 5 || len(keyboard.Content.Rows) == 0 {
+			t.Fatalf("invalid keyboard for %q: %+v", step.command, keyboard)
+		}
+		for _, row := range keyboard.Content.Rows {
+			if len(row.Buttons) != 1 {
+				t.Fatalf("expected single-column buttons: %+v", row)
+			}
+		}
+		if got := keyboard.Content.Rows[0].Buttons[0].Action.Data; got != step.want {
+			t.Fatalf("after %q first choice = %q, want %q", step.command, got, step.want)
+		}
+	}
+	event.Content = "model-five"
+	answer, err := h.Handle(context.Background(), event)
+	if err != nil || answer != "answer" {
+		t.Fatalf("model selection: %q %v", answer, err)
+	}
+}

@@ -22,23 +22,27 @@ func KeyboardForPrompt(prompt string) (qq.Keyboard, bool) {
 		return newKeyboard([][]string{{"是", "否"}}), true
 	case strings.HasPrefix(prompt, "请选择使用哪个分组："):
 		choices := choicesAfter(prompt, "请选择使用哪个分组：")
-		choices = append(choices, "停")
-		return newChoiceKeyboard(choices), len(choices) > 1
+		return newChoiceKeyboard(choices, prompt), len(choices) > 0
 	case strings.Contains(prompt, "分组下有以下模型请先选择："):
 		choices := choicesAfter(prompt, "模型请先选择：")
-		return newChoiceKeyboard(choices), len(choices) > 0
+		return newChoiceKeyboard(choices, prompt), len(choices) > 0
 	default:
 		return qq.Keyboard{}, false
 	}
 }
 
-func newChoiceKeyboard(choices []string) qq.Keyboard {
-	rows := make([][]string, 0, (len(choices)+4)/5)
-	for len(choices) > 0 {
-		size := min(5, len(choices))
-		rows = append(rows, choices[:size])
-		choices = choices[size:]
+func newChoiceKeyboard(choices []string, prompt string) qq.Keyboard {
+	rows := make([][]string, 0, 5)
+	for _, choice := range choices {
+		rows = append(rows, []string{choice})
 	}
+	_, footer, _ := strings.Cut(prompt, "\n")
+	for _, control := range []string{"上一页", "下一页"} {
+		if strings.Contains(footer, "["+control+"]") {
+			rows = append(rows, []string{control})
+		}
+	}
+	rows = append(rows, []string{"停"})
 	return newKeyboard(rows)
 }
 
@@ -89,6 +93,7 @@ func choicesAfter(prompt, marker string) []string {
 
 // KeyboardPrompt removes choices already rendered by the keyboard.
 func KeyboardPrompt(prompt string) string {
+	cleanFooter := strings.NewReplacer("\n[上一页]", "", "\n[下一页]", "")
 	switch {
 	case prompt == BuildMainMenu():
 		return "请选择功能："
@@ -96,10 +101,15 @@ func KeyboardPrompt(prompt string) string {
 		return "请选择要使用的站点："
 	case strings.HasPrefix(prompt, "请选择使用哪个分组："):
 		_, suffix, _ := strings.Cut(prompt, "\n")
-		return "请选择使用哪个分组：\n" + suffix
+		return "请选择使用哪个分组：\n" + cleanFooter.Replace(suffix)
 	case strings.Contains(prompt, "分组下有以下模型请先选择："):
 		prefix, _, _ := strings.Cut(prompt, "模型请先选择：")
-		return prefix + "模型，请点击选择："
+		_, suffix, _ := strings.Cut(prompt, "\n")
+		text := prefix + "模型，请点击选择："
+		if suffix != "" {
+			text += "\n" + cleanFooter.Replace(suffix)
+		}
+		return text
 	default:
 		return prompt
 	}
