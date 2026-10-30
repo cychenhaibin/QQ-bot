@@ -45,3 +45,14 @@ func TestClientCheckInReportsDisabledFeature(t *testing.T) {
 		t.Fatalf("CheckIn() error = %v, want ErrCheckInDisabled", err)
 	}
 }
+
+func TestClientCheckInReportsAlreadyCheckedIn(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false,"message":"Already checked in today"}`))
+	}))
+	defer server.Close()
+	client := NewClient(ClientConfig{BaseURL: server.URL, BotID: "bot", Secret: "secret"})
+	if _, err := client.CheckIn(context.Background(), AccountRequest{MemberOpenID: "member"}); !errors.Is(err, ErrAlreadyCheckedIn) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

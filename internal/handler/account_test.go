@@ -51,6 +51,14 @@ func TestAccountHandlerExplainsWhenCheckinIsDisabled(t *testing.T) {
 	}
 }
 
+func TestAccountHandlerExplainsAlreadyCheckedIn(t *testing.T) {
+	h := NewAccountHandler(fakeAccountAPI{err: newapi.ErrAlreadyCheckedIn})
+	reply, err := h.Handle(context.Background(), qq.GroupMessage{Content: "每日签到"})
+	if err != nil || reply != "今天已经签到过了，请明天再来。" {
+		t.Fatalf("reply=%q err=%v", reply, err)
+	}
+}
+
 func TestAccountHandlerDoesNotReplyForOtherMessages(t *testing.T) {
 	h := NewAccountHandler(fakeAccountAPI{err: errors.New("must not call")})
 	reply, err := h.Handle(context.Background(), qq.GroupMessage{Content: "菜单"})

@@ -40,6 +40,9 @@ func (h *AccountHandler) Handle(ctx context.Context, event qq.GroupMessage) (str
 	case "每日签到":
 		_, err := h.api.CheckIn(ctx, newapi.AccountRequest{MemberOpenID: event.MemberOpenID})
 		if err != nil {
+			if errors.Is(err, newapi.ErrAlreadyCheckedIn) {
+				return "今天已经签到过了，请明天再来。", nil
+			}
 			if errors.Is(err, newapi.ErrCheckInDisabled) {
 				return "当前站点未开启签到功能，暂时无法签到。", nil
 			}
