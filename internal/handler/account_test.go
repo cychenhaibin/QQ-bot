@@ -43,6 +43,14 @@ func TestAccountHandlerRepliesWithExactCheckinSuccessMessage(t *testing.T) {
 	}
 }
 
+func TestAccountHandlerExplainsWhenCheckinIsDisabled(t *testing.T) {
+	h := NewAccountHandler(fakeAccountAPI{err: newapi.ErrCheckInDisabled})
+	reply, err := h.Handle(context.Background(), qq.GroupMessage{GroupOpenID: "group", MemberOpenID: "member", Content: "每日签到"})
+	if err != nil || reply != "当前站点未开启签到功能，暂时无法签到。" {
+		t.Fatalf("Handle() = %q, %v", reply, err)
+	}
+}
+
 func TestAccountHandlerDoesNotReplyForOtherMessages(t *testing.T) {
 	h := NewAccountHandler(fakeAccountAPI{err: errors.New("must not call")})
 	reply, err := h.Handle(context.Background(), qq.GroupMessage{Content: "菜单"})

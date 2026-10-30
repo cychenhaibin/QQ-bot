@@ -3,7 +3,10 @@ package newapi
 import (
 	"context"
 	"errors"
+	"strings"
 )
+
+var ErrCheckInDisabled = errors.New("check-in feature is not enabled")
 
 type AccountRequest struct {
 	MemberOpenID string `json:"member_openid"`
@@ -38,6 +41,9 @@ func (c *Client) CheckIn(ctx context.Context, request AccountRequest) (CheckinRe
 	}
 	var response CheckinResponse
 	if err := c.DoJSON(ctx, "POST", "/api/bot/v1/checkin", request, &response); err != nil {
+		if strings.EqualFold(strings.TrimSpace(err.Error()), ErrCheckInDisabled.Error()) {
+			return CheckinResponse{}, ErrCheckInDisabled
+		}
 		return CheckinResponse{}, err
 	}
 	return response, nil

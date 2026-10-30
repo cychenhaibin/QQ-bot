@@ -2,6 +2,7 @@ package newapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,5 +30,18 @@ func TestClientAccountMethodsUseBotEndpoints(t *testing.T) {
 	checkin, err := client.CheckIn(context.Background(), AccountRequest{MemberOpenID: "member-1"})
 	if err != nil || checkin.QuotaAwarded != 100 {
 		t.Fatalf("CheckIn() = %+v, %v", checkin, err)
+	}
+}
+
+func TestClientCheckInReportsDisabledFeature(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":false,"message":"Check-in feature is not enabled"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientConfig{BaseURL: server.URL, BotID: "bot", Secret: "secret"})
+	if _, err := client.CheckIn(context.Background(), AccountRequest{MemberOpenID: "member-1"}); !errors.Is(err, ErrCheckInDisabled) {
+		t.Fatalf("CheckIn() error = %v, want ErrCheckInDisabled", err)
 	}
 }
