@@ -78,16 +78,9 @@ func main() {
 	siteRouter := handler.NewSiteRouter()
 	gateway := qq.Gateway{
 		URL:     gatewayURL,
-		Intents: 1 << 25,
+		Intents: (1 << 25) | (1 << 26),
 		Token:   client.AccessToken,
 		OnEvent: func(ctx context.Context, envelope qq.GatewayEnvelope) error {
-			if envelope.EventType != "GROUP_AT_MESSAGE_CREATE" && envelope.EventType != "GROUP_MESSAGE_CREATE" {
-				return nil
-			}
-			event, err := qq.DecodeGroupMessage(envelope.Data, envelope.EventType)
-			if err != nil {
-				return err
-			}
 			dispatch := func(selected site.ID, routedEvent qq.GroupMessage) (string, error) {
 				selectedHandlers, ok := clients[selected]
 				if !ok {
@@ -95,17 +88,48 @@ func main() {
 				}
 				return selectedHandlers.Handle(ctx, routedEvent)
 			}
-			reply, handled, routeErr := siteRouter.Handle(event, dispatch)
-			if handled {
-				if routeErr != nil {
-					log.Printf("site-routed request failed: %v", routeErr)
+			process := func(event qq.GroupMessage, interactionID string) error {
+				reply, handled, routeErr := siteRouter.Handle(event, dispatch)
+				if handled {
+					if routeErr != nil {
+						log.Printf("site-routed request failed: %v", routeErr)
+					}
+					if reply != "" {
+						return handler.SendGroupReply(ctx, client, event.GroupOpenID, reply, event.MessageID, interactionID)
+					}
+					return nil
 				}
-				if reply != "" {
-					return client.SendGroupMessage(ctx, event.GroupOpenID, reply, event.MessageID)
+				if interactionID != "" {
+					if event.Content == "菜单" || event.Content == "/菜单" || event.Content == "帮助" {
+						return handler.SendGroupReply(ctx, client, event.GroupOpenID, handler.BuildMainMenu(), "", interactionID)
+					}
+					return nil
 				}
+				return menuHandler.Handle(ctx, event)
+			}
+			switch envelope.EventType {
+			case "GROUP_AT_MESSAGE_CREATE", "GROUP_MESSAGE_CREATE":
+				event, err := qq.DecodeGroupMessage(envelope.Data, envelope.EventType)
+				if err != nil {
+					return err
+				}
+				return process(event, "")
+			case "INTERACTION_CREATE":
+				interaction, err := qq.DecodeInteraction(envelope.Data)
+				if err != nil {
+					return err
+				}
+				if err := client.AcknowledgeInteraction(ctx, interaction.ID); err != nil {
+					return err
+				}
+				return process(qq.GroupMessage{
+					GroupOpenID:  interaction.GroupOpenID,
+					MemberOpenID: interaction.MemberOpenID,
+					Content:      interaction.ButtonData,
+				}, interaction.ID)
+			default:
 				return nil
 			}
-			return menuHandler.Handle(ctx, event)
 		},
 	}
 

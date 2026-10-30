@@ -17,6 +17,11 @@ type GroupMessageSender interface {
 	SendGroupMessage(context.Context, string, string, string) error
 }
 
+type GroupKeyboardSender interface {
+	GroupMessageSender
+	SendGroupKeyboardMessage(context.Context, string, string, qq.Keyboard, string) error
+}
+
 type MenuHandler struct {
 	Sender GroupMessageSender
 }
@@ -25,5 +30,13 @@ func (h MenuHandler) Handle(ctx context.Context, event qq.GroupMessage) error {
 	if event.Content != "菜单" && event.Content != "/菜单" && event.Content != "帮助" {
 		return nil
 	}
-	return h.Sender.SendGroupMessage(ctx, event.GroupOpenID, BuildMainMenu(), event.MessageID)
+	menu := BuildMainMenu()
+	if sender, ok := h.Sender.(GroupKeyboardSender); ok {
+		if keyboard, hasKeyboard := KeyboardForPrompt(menu); hasKeyboard {
+			if err := sender.SendGroupKeyboardMessage(ctx, event.GroupOpenID, menu, keyboard, event.MessageID); err == nil {
+				return nil
+			}
+		}
+	}
+	return h.Sender.SendGroupMessage(ctx, event.GroupOpenID, menu, event.MessageID)
 }
