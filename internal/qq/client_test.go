@@ -105,6 +105,16 @@ func TestClientSendsGroupKeyboardMessage(t *testing.T) {
 	if payload["markdown"] == nil || payload["keyboard"] == nil {
 		t.Fatalf("payload missing markdown or keyboard: %#v", payload)
 	}
+	if _, exists := payload["content"]; exists {
+		t.Fatal("markdown keyboard message must not duplicate ordinary text content")
+	}
+	payload = nil
+	if err := client.SendGroupKeyboardMessageForInteraction(context.Background(), "group-1", "请选择站点：", keyboard, "event-1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := payload["content"]; exists || payload["event_id"] != "event-1" {
+		t.Fatalf("unexpected interaction keyboard payload: %#v", payload)
+	}
 }
 
 func TestClientAcknowledgesInteraction(t *testing.T) {

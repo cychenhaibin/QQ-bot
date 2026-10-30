@@ -127,13 +127,11 @@ func (c *Client) SendGroupKeyboardMessage(ctx context.Context, groupOpenID, cont
 		return errors.New("group openid is required")
 	}
 	payload := struct {
-		Content  string   `json:"content"`
 		MsgType  int      `json:"msg_type"`
 		MsgID    string   `json:"msg_id,omitempty"`
 		Markdown Markdown `json:"markdown"`
 		Keyboard Keyboard `json:"keyboard"`
 	}{
-		Content:  content,
 		MsgType:  2,
 		MsgID:    messageID,
 		Markdown: Markdown{Content: content},
@@ -147,13 +145,11 @@ func (c *Client) SendGroupKeyboardMessageForInteraction(ctx context.Context, gro
 		return errors.New("group openid is required")
 	}
 	payload := struct {
-		Content  string   `json:"content"`
 		MsgType  int      `json:"msg_type"`
 		EventID  string   `json:"event_id,omitempty"`
 		Markdown Markdown `json:"markdown"`
 		Keyboard Keyboard `json:"keyboard"`
 	}{
-		Content:  content,
 		MsgType:  2,
 		EventID:  interactionID,
 		Markdown: Markdown{Content: content},
