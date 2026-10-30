@@ -3,8 +3,9 @@ package newapi
 import "context"
 
 type ChannelGroup struct {
-	Group  string   `json:"group"`
-	Models []string `json:"models"`
+	Group          string   `json:"group"`
+	Models         []string `json:"models"`
+	Availability7d *float64 `json:"availability_7d"`
 }
 
 func (c *Client) ListChannels(ctx context.Context) ([]ChannelGroup, error) {

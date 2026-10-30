@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/QuantumNous/qq-bot-service/internal/newapi"
@@ -40,8 +41,12 @@ func (h *ChannelHandler) Handle(ctx context.Context, event qq.GroupMessage) (str
 	for _, group := range groups {
 		builder.WriteString("\n\n分组：")
 		builder.WriteString(group.Group)
-		builder.WriteString("\n模型：")
-		builder.WriteString(strings.Join(group.Models, "、"))
+		builder.WriteString("\n7 日可用率：")
+		if group.Availability7d == nil {
+			builder.WriteString("暂无数据")
+		} else {
+			builder.WriteString(fmt.Sprintf("%.2f%%", *group.Availability7d*100))
+		}
 	}
 	return builder.String(), nil
 }

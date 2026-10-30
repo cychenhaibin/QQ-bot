@@ -18,13 +18,23 @@ func (f fakeChannelAPI) ListChannels(context.Context) ([]newapi.ChannelGroup, er
 }
 
 func TestChannelHandlerListsGroupsAndModels(t *testing.T) {
-	h := NewChannelHandler(fakeChannelAPI{groups: []newapi.ChannelGroup{{Group: "default", Models: []string{"gpt-4", "claude-3"}}}})
+	availability := 0.9327
+	h := NewChannelHandler(fakeChannelAPI{groups: []newapi.ChannelGroup{{Group: "default", Availability7d: &availability}}})
 	reply, err := h.Handle(context.Background(), qq.GroupMessage{Content: "模型渠道"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(reply, "default") || !strings.Contains(reply, "gpt-4") || !strings.Contains(reply, "claude-3") {
+	if !strings.Contains(reply, "default") || !strings.Contains(reply, "7 日可用率：93.27%") {
 		t.Fatalf("unexpected reply: %s", reply)
+	}
+}
+
+func TestChannelHandlerDistinguishesNoDataAndZeroAvailability(t *testing.T) {
+	zero := 0.0
+	h := NewChannelHandler(fakeChannelAPI{groups: []newapi.ChannelGroup{{Group: "empty"}, {Group: "failed", Availability7d: &zero}}})
+	reply, err := h.Handle(context.Background(), qq.GroupMessage{Content: "模型渠道"})
+	if err != nil || !strings.Contains(reply, "7 日可用率：暂无数据") || !strings.Contains(reply, "7 日可用率：0.00%") {
+		t.Fatalf("reply=%q err=%v", reply, err)
 	}
 }
 
