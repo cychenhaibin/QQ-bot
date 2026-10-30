@@ -15,6 +15,13 @@ type GroupMessage struct {
 	Content      string
 }
 
+type Interaction struct {
+	ID           string
+	GroupOpenID  string
+	MemberOpenID string
+	ButtonData   string
+}
+
 type groupMessagePayload struct {
 	ID          string `json:"id"`
 	GroupOpenID string `json:"group_openid"`
@@ -40,5 +47,30 @@ func DecodeGroupMessage(data []byte, eventType string) (GroupMessage, error) {
 		GroupOpenID:  payload.GroupOpenID,
 		MemberOpenID: payload.Author.MemberOpenID,
 		Content:      strings.TrimSpace(payload.Content),
+	}, nil
+}
+
+func DecodeInteraction(data []byte) (Interaction, error) {
+	var payload struct {
+		ID           string `json:"id"`
+		GroupOpenID  string `json:"group_openid"`
+		MemberOpenID string `json:"group_member_openid"`
+		Data         struct {
+			Resolved struct {
+				ButtonData string `json:"button_data"`
+			} `json:"resolved"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return Interaction{}, err
+	}
+	if strings.TrimSpace(payload.ID) == "" || strings.TrimSpace(payload.GroupOpenID) == "" || strings.TrimSpace(payload.MemberOpenID) == "" || strings.TrimSpace(payload.Data.Resolved.ButtonData) == "" {
+		return Interaction{}, errors.New("QQ interaction is missing identity or button data")
+	}
+	return Interaction{
+		ID:           payload.ID,
+		GroupOpenID:  payload.GroupOpenID,
+		MemberOpenID: payload.MemberOpenID,
+		ButtonData:   strings.TrimSpace(payload.Data.Resolved.ButtonData),
 	}, nil
 }
