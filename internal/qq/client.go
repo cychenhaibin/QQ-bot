@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -156,18 +157,34 @@ func (c *Client) accessToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("get QQ access token: status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
 	}
 	var tokenResponse struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int64  `json:"expires_in"`
+		AccessToken string          `json:"access_token"`
+		ExpiresIn   json.RawMessage `json:"expires_in"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
 		return "", err
 	}
-	if tokenResponse.AccessToken == "" || tokenResponse.ExpiresIn <= 0 {
+	expiresIn, err := parseExpiresIn(tokenResponse.ExpiresIn)
+	if err != nil {
+		return "", fmt.Errorf("parse QQ access token expiry: %w", err)
+	}
+	if tokenResponse.AccessToken == "" || expiresIn <= 0 {
 		return "", errors.New("QQ access token response is invalid")
 	}
 	c.mu.Lock()
 	c.cachedAccessToken = tokenResponse.AccessToken
-	c.tokenExpiry = time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
+	c.tokenExpiry = time.Now().Add(time.Duration(expiresIn) * time.Second)
 	c.mu.Unlock()
 	return tokenResponse.AccessToken, nil
+}
+
+func parseExpiresIn(raw json.RawMessage) (int64, error) {
+	var numeric int64
+	if err := json.Unmarshal(raw, &numeric); err == nil {
+		return numeric, nil
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(strings.TrimSpace(text), 10, 64)
 }

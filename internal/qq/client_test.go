@@ -44,3 +44,23 @@ func TestClientGetsAccessTokenAndSendsGroupMessage(t *testing.T) {
 		t.Fatalf("Authorization = %q", authHeader)
 	}
 }
+
+func TestClientAcceptsStringExpiresInFromQQTokenEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"access-token","expires_in":"7200"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientConfig{
+		HTTPClient:    server.Client(),
+		APIBaseURL:    server.URL,
+		AppID:         "app-id",
+		AppSecret:     "app-secret",
+		TokenEndpoint: server.URL,
+	})
+
+	if token, err := client.AccessToken(context.Background()); err != nil || token != "access-token" {
+		t.Fatalf("AccessToken() = %q, %v", token, err)
+	}
+}
