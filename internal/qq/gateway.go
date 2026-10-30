@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,7 @@ const (
 )
 
 type GatewayEnvelope struct {
+	ID        string          `json:"id"`
 	Op        int             `json:"op"`
 	Sequence  int64           `json:"s"`
 	EventType string          `json:"t"`
@@ -166,7 +168,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		case OpDispatch:
 			if g.OnEvent != nil {
 				if err := g.OnEvent(ctx, event); err != nil {
-					return err
+					log.Printf("QQ event %s handler failed: %v", event.EventType, err)
 				}
 			}
 		case OpReconnect:

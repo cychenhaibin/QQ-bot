@@ -18,7 +18,7 @@ func TestIdentifyPayloadUsesOfficialQQBotTokenFormat(t *testing.T) {
 }
 
 func TestDecodeGatewayEnvelopePreservesSequenceAndEventData(t *testing.T) {
-	envelope, err := DecodeGatewayEnvelope([]byte(`{"op":0,"s":7,"t":"GROUP_AT_MESSAGE_CREATE","d":{"id":"message-1"}}`))
+	envelope, err := DecodeGatewayEnvelope([]byte(`{"id":"event-1","op":0,"s":7,"t":"GROUP_AT_MESSAGE_CREATE","d":{"id":"message-1"}}`))
 	if err != nil {
 		t.Fatalf("DecodeGatewayEnvelope() error = %v", err)
 	}
@@ -27,5 +27,8 @@ func TestDecodeGatewayEnvelopePreservesSequenceAndEventData(t *testing.T) {
 	}
 	if string(envelope.Data) != `{"id":"message-1"}` {
 		t.Fatalf("Data = %s", envelope.Data)
+	}
+	if envelope.ID != "event-1" {
+		t.Fatalf("gateway event ID = %q, want event-1", envelope.ID)
 	}
 }

@@ -32,6 +32,18 @@ func TestKeyboardForPromptBuildsDynamicAIButtons(t *testing.T) {
 	if !ok || len(modelKeyboard.Content.Rows[0].Buttons) != 2 {
 		t.Fatalf("model keyboard = %#v, %v", modelKeyboard, ok)
 	}
+	if got := modelKeyboard.Content.Rows[0].Buttons[0].Action.Data; got != "gpt-4" {
+		t.Fatalf("model command = %q, want gpt-4", got)
+	}
+}
+
+func TestKeyboardPromptOmitsDuplicateChoices(t *testing.T) {
+	if got := KeyboardPrompt(siteSelectionPrompt()); got != "请选择要使用的站点：" {
+		t.Fatalf("site prompt = %q", got)
+	}
+	if got := KeyboardPrompt(BuildMainMenu()); got != "请选择功能：" {
+		t.Fatalf("menu prompt = %q", got)
+	}
 }
 
 func TestKeyboardForPromptIgnoresFreeFormReplies(t *testing.T) {

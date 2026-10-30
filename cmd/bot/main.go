@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -95,13 +96,13 @@ func main() {
 						log.Printf("site-routed request failed: %v", routeErr)
 					}
 					if reply != "" {
-						return handler.SendGroupReply(ctx, client, event.GroupOpenID, reply, event.MessageID, interactionID)
+						return handler.SendGroupReply(ctx, client, event.GroupOpenID, reply, event.MessageID, interactionID, event.MemberOpenID)
 					}
 					return nil
 				}
 				if interactionID != "" {
 					if event.Content == "菜单" || event.Content == "/菜单" || event.Content == "帮助" {
-						return handler.SendGroupReply(ctx, client, event.GroupOpenID, handler.BuildMainMenu(), "", interactionID)
+						return handler.SendGroupReply(ctx, client, event.GroupOpenID, handler.BuildMainMenu(), "", interactionID, event.MemberOpenID)
 					}
 					return nil
 				}
@@ -122,11 +123,14 @@ func main() {
 				if err := client.AcknowledgeInteraction(ctx, interaction.ID); err != nil {
 					return err
 				}
+				if envelope.ID == "" {
+					return fmt.Errorf("QQ interaction is missing gateway event id")
+				}
 				return process(qq.GroupMessage{
 					GroupOpenID:  interaction.GroupOpenID,
 					MemberOpenID: interaction.MemberOpenID,
 					Content:      interaction.ButtonData,
-				}, interaction.ID)
+				}, envelope.ID)
 			default:
 				return nil
 			}

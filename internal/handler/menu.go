@@ -33,7 +33,11 @@ func (h MenuHandler) Handle(ctx context.Context, event qq.GroupMessage) error {
 	menu := BuildMainMenu()
 	if sender, ok := h.Sender.(GroupKeyboardSender); ok {
 		if keyboard, hasKeyboard := KeyboardForPrompt(menu); hasKeyboard {
-			if err := sender.SendGroupKeyboardMessage(ctx, event.GroupOpenID, menu, keyboard, event.MessageID); err == nil {
+			prompt := KeyboardPrompt(menu)
+			if event.MemberOpenID != "" {
+				prompt = "<@" + event.MemberOpenID + "> " + prompt
+			}
+			if err := sender.SendGroupKeyboardMessage(ctx, event.GroupOpenID, prompt, keyboard, event.MessageID); err == nil {
 				return nil
 			}
 		}

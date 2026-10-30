@@ -72,7 +72,8 @@ func newKeyboard(rows [][]string) qq.Keyboard {
 }
 
 func choicesAfter(prompt, marker string) []string {
-	value := strings.TrimSpace(strings.TrimPrefix(prompt, marker))
+	_, value, _ := strings.Cut(prompt, marker)
+	value = strings.TrimSpace(value)
 	if newline := strings.IndexByte(value, '\n'); newline >= 0 {
 		value = value[:newline]
 	}
@@ -84,4 +85,22 @@ func choicesAfter(prompt, marker string) []string {
 		}
 	}
 	return choices
+}
+
+// KeyboardPrompt removes choices already rendered by the keyboard.
+func KeyboardPrompt(prompt string) string {
+	switch {
+	case prompt == BuildMainMenu():
+		return "请选择功能："
+	case prompt == siteSelectionPrompt():
+		return "请选择要使用的站点："
+	case strings.HasPrefix(prompt, "请选择使用哪个分组："):
+		_, suffix, _ := strings.Cut(prompt, "\n")
+		return "请选择使用哪个分组：\n" + suffix
+	case strings.Contains(prompt, "分组下有以下模型请先选择："):
+		prefix, _, _ := strings.Cut(prompt, "模型请先选择：")
+		return prefix + "模型，请点击选择："
+	default:
+		return prompt
+	}
 }
