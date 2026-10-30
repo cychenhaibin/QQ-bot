@@ -38,17 +38,15 @@ func newChoiceKeyboard(choices []string, prompt string) qq.Keyboard {
 		rows = append(rows, choices[:size])
 		choices = choices[size:]
 	}
-	controls := make([]string, 0, 2)
+	controls := make([]string, 0, 3)
 	_, footer, _ := strings.Cut(prompt, "\n")
 	for _, control := range []string{"上一页", "下一页"} {
 		if strings.Contains(footer, "["+control+"]") {
 			controls = append(controls, control)
 		}
 	}
-	if len(controls) > 0 {
-		rows = append(rows, controls)
-	}
-	rows = append(rows, []string{"停"})
+	controls = append(controls, "停")
+	rows = append(rows, controls)
 	return newKeyboard(rows)
 }
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -48,26 +49,30 @@ func TestAIHandlerKeepsIndependentUserSessionAndStopsOnCommand(t *testing.T) {
 type paginatedAIAPI struct{ fakeAIAPI }
 
 func (paginatedAIAPI) ListAIGroups(context.Context, newapi.AIRequest) ([]newapi.AIGroup, error) {
-	groups := make([]newapi.AIGroup, 0, 11)
-	for _, name := range []string{"group-one", "group-two", "group-three", "group-four", "group-five", "group-six", "group-seven", "group-eight", "group-nine", "group-ten", "group-eleven"} {
-		groups = append(groups, newapi.AIGroup{Group: name, Models: []string{"model-one", "model-two", "model-three", "model-four", "model-five", "model-six", "model-seven", "model-eight", "model-nine", "model-ten", "model-eleven"}})
+	models := make([]string, 0, 17)
+	for i := range 17 {
+		models = append(models, fmt.Sprintf("model-%02d", i+1))
+	}
+	groups := make([]newapi.AIGroup, 0, 17)
+	for i := range 17 {
+		groups = append(groups, newapi.AIGroup{Group: fmt.Sprintf("group-%02d", i+1), Models: models})
 	}
 	return groups, nil
 }
 
-func TestAIChoicePagesUseFiveChoicesWithTwoColumnsWithinQQRowLimit(t *testing.T) {
+func TestAIChoicePagesUseEightChoicesWithTwoColumnsAndOneNavigationRow(t *testing.T) {
 	h := NewAIHandler(paginatedAIAPI{})
 	event := qq.GroupMessage{GroupOpenID: "group", MemberOpenID: "member"}
 	commands := []struct{ command, want string }{
-		{"AI 对话", "group-one"},
-		{"上一页", "group-one"},
-		{"下一页", "group-six"},
-		{"下一页", "group-eleven"},
-		{"下一页", "group-eleven"},
-		{"上一页", "group-six"},
-		{"group-six", "model-one"},
-		{"下一页", "model-six"},
-		{"下一页", "model-eleven"},
+		{"AI 对话", "group-01"},
+		{"上一页", "group-01"},
+		{"下一页", "group-09"},
+		{"下一页", "group-17"},
+		{"下一页", "group-17"},
+		{"上一页", "group-09"},
+		{"group-09", "model-01"},
+		{"下一页", "model-09"},
+		{"下一页", "model-17"},
 	}
 	for _, step := range commands {
 		event.Content = step.command
@@ -80,7 +85,18 @@ func TestAIChoicePagesUseFiveChoicesWithTwoColumnsWithinQQRowLimit(t *testing.T)
 			t.Fatalf("invalid keyboard for %q: %+v", step.command, keyboard)
 		}
 		choiceCount := 0
-		for _, row := range keyboard.Content.Rows {
+		for index, row := range keyboard.Content.Rows {
+			if index == len(keyboard.Content.Rows)-1 {
+				if len(row.Buttons) > 3 || row.Buttons[len(row.Buttons)-1].Action.Data != "停" {
+					t.Fatalf("invalid navigation row: %+v", row)
+				}
+				for _, button := range row.Buttons {
+					if button.Action.Data != "上一页" && button.Action.Data != "下一页" && button.Action.Data != "停" {
+						t.Fatalf("choice leaked into navigation: %+v", row)
+					}
+				}
+				continue
+			}
 			if len(row.Buttons) > 2 || len(row.Buttons) == 0 {
 				t.Fatalf("expected at most two buttons per row: %+v", row)
 			}
@@ -90,8 +106,8 @@ func TestAIChoicePagesUseFiveChoicesWithTwoColumnsWithinQQRowLimit(t *testing.T)
 				}
 			}
 		}
-		wantCount := 5
-		if strings.HasSuffix(step.want, "eleven") {
+		wantCount := 8
+		if strings.HasSuffix(step.want, "17") {
 			wantCount = 1
 		}
 		if choiceCount != wantCount {
@@ -101,7 +117,7 @@ func TestAIChoicePagesUseFiveChoicesWithTwoColumnsWithinQQRowLimit(t *testing.T)
 			t.Fatalf("after %q first choice = %q, want %q", step.command, got, step.want)
 		}
 	}
-	event.Content = "model-eleven"
+	event.Content = "model-17"
 	answer, err := h.Handle(context.Background(), event)
 	if err != nil || answer != "answer" {
 		t.Fatalf("model selection: %q %v", answer, err)
