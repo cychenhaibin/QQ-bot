@@ -41,7 +41,21 @@ func NewSiteRouter() *SiteRouter {
 func (r *SiteRouter) Handle(event qq.GroupMessage, dispatch SiteDispatch) (string, bool, error) {
 	key := event.GroupOpenID + "\x00" + event.MemberOpenID
 	content := strings.TrimSpace(event.Content)
+	if IsMenuCommand(content) {
+		return "", false, nil
+	}
 	session, exists := r.get(key)
+	if exists && session.Operation == siteOperationAI && content == "停" {
+		r.delete(key)
+		if session.Site == "" {
+			return "本轮 AI 对话已停止。", true, nil
+		}
+		reply, err := dispatch(session.Site, event)
+		if reply == "" && err == nil {
+			reply = "本轮 AI 对话已停止。"
+		}
+		return reply, true, err
+	}
 	if exists && isOperationStart(content) {
 		r.delete(key)
 		exists = false

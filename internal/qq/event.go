@@ -42,11 +42,15 @@ func DecodeGroupMessage(data []byte, eventType string) (GroupMessage, error) {
 	if strings.TrimSpace(payload.ID) == "" || strings.TrimSpace(payload.GroupOpenID) == "" || strings.TrimSpace(payload.Author.MemberOpenID) == "" {
 		return GroupMessage{}, errors.New("QQ group message is missing identity fields")
 	}
+	content := strings.TrimSpace(payload.Content)
+	if eventType == "GROUP_AT_MESSAGE_CREATE" && content == "" {
+		content = "菜单"
+	}
 	return GroupMessage{
 		MessageID:    payload.ID,
 		GroupOpenID:  payload.GroupOpenID,
 		MemberOpenID: payload.Author.MemberOpenID,
-		Content:      strings.TrimSpace(payload.Content),
+		Content:      content,
 	}, nil
 }
 

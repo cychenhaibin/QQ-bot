@@ -2,6 +2,23 @@ package qq
 
 import "testing"
 
+func TestBareGroupMentionOpensMenuButEmptyOrdinaryMessageDoesNot(t *testing.T) {
+	data := []byte(`{"id":"message","group_openid":"group","content":"  ","author":{"member_openid":"member"}}`)
+	for _, eventType := range []string{"GROUP_AT_MESSAGE_CREATE", "GROUP_MESSAGE_CREATE"} {
+		event, err := DecodeGroupMessage(data, eventType)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := ""
+		if eventType == "GROUP_AT_MESSAGE_CREATE" {
+			want = "菜单"
+		}
+		if event.Content != want {
+			t.Fatalf("%s content=%q want=%q", eventType, event.Content, want)
+		}
+	}
+}
+
 func TestDecodeGroupAtMessage(t *testing.T) {
 	data := []byte(`{"id":"message-1","group_openid":"group-1","content":" /菜单 ","author":{"member_openid":"member-1"}}`)
 

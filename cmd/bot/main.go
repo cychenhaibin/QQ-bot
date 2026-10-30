@@ -101,7 +101,7 @@ func main() {
 					return nil
 				}
 				if interactionID != "" {
-					if event.Content == "菜单" || event.Content == "/菜单" || event.Content == "帮助" {
+					if handler.IsMenuCommand(event.Content) {
 						return handler.SendGroupReply(ctx, client, event.GroupOpenID, handler.BuildMainMenu(), "", interactionID, event.MemberOpenID)
 					}
 					return nil

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strings"
 
 	"github.com/QuantumNous/qq-bot-service/internal/qq"
 )
@@ -27,7 +28,7 @@ type MenuHandler struct {
 }
 
 func (h MenuHandler) Handle(ctx context.Context, event qq.GroupMessage) error {
-	if event.Content != "菜单" && event.Content != "/菜单" && event.Content != "帮助" {
+	if !IsMenuCommand(event.Content) {
 		return nil
 	}
 	menu := BuildMainMenu()
@@ -43,4 +44,13 @@ func (h MenuHandler) Handle(ctx context.Context, event qq.GroupMessage) error {
 		}
 	}
 	return h.Sender.SendGroupMessage(ctx, event.GroupOpenID, menu, event.MessageID)
+}
+
+func IsMenuCommand(content string) bool {
+	switch strings.TrimSpace(content) {
+	case "菜单", "/菜单", "帮助":
+		return true
+	default:
+		return false
+	}
 }
