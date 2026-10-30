@@ -33,14 +33,20 @@ func KeyboardForPrompt(prompt string) (qq.Keyboard, bool) {
 
 func newChoiceKeyboard(choices []string, prompt string) qq.Keyboard {
 	rows := make([][]string, 0, 5)
-	for _, choice := range choices {
-		rows = append(rows, []string{choice})
+	for len(choices) > 0 {
+		size := min(2, len(choices))
+		rows = append(rows, choices[:size])
+		choices = choices[size:]
 	}
+	controls := make([]string, 0, 2)
 	_, footer, _ := strings.Cut(prompt, "\n")
 	for _, control := range []string{"上一页", "下一页"} {
 		if strings.Contains(footer, "["+control+"]") {
-			rows = append(rows, []string{control})
+			controls = append(controls, control)
 		}
+	}
+	if len(controls) > 0 {
+		rows = append(rows, controls)
 	}
 	rows = append(rows, []string{"停"})
 	return newKeyboard(rows)

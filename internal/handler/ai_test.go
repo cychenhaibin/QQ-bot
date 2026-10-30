@@ -48,26 +48,26 @@ func TestAIHandlerKeepsIndependentUserSessionAndStopsOnCommand(t *testing.T) {
 type paginatedAIAPI struct{ fakeAIAPI }
 
 func (paginatedAIAPI) ListAIGroups(context.Context, newapi.AIRequest) ([]newapi.AIGroup, error) {
-	groups := make([]newapi.AIGroup, 0, 5)
-	for _, name := range []string{"group-one", "group-two", "group-three", "group-four", "group-five"} {
-		groups = append(groups, newapi.AIGroup{Group: name, Models: []string{"model-one", "model-two", "model-three", "model-four", "model-five"}})
+	groups := make([]newapi.AIGroup, 0, 11)
+	for _, name := range []string{"group-one", "group-two", "group-three", "group-four", "group-five", "group-six", "group-seven", "group-eight", "group-nine", "group-ten", "group-eleven"} {
+		groups = append(groups, newapi.AIGroup{Group: name, Models: []string{"model-one", "model-two", "model-three", "model-four", "model-five", "model-six", "model-seven", "model-eight", "model-nine", "model-ten", "model-eleven"}})
 	}
 	return groups, nil
 }
 
-func TestAIChoicePagesUseOneButtonPerRowWithinQQRowLimit(t *testing.T) {
+func TestAIChoicePagesUseFiveChoicesWithTwoColumnsWithinQQRowLimit(t *testing.T) {
 	h := NewAIHandler(paginatedAIAPI{})
 	event := qq.GroupMessage{GroupOpenID: "group", MemberOpenID: "member"}
 	commands := []struct{ command, want string }{
 		{"AI 对话", "group-one"},
 		{"上一页", "group-one"},
-		{"下一页", "group-three"},
-		{"下一页", "group-five"},
-		{"下一页", "group-five"},
-		{"上一页", "group-three"},
-		{"group-three", "model-one"},
-		{"下一页", "model-three"},
-		{"下一页", "model-five"},
+		{"下一页", "group-six"},
+		{"下一页", "group-eleven"},
+		{"下一页", "group-eleven"},
+		{"上一页", "group-six"},
+		{"group-six", "model-one"},
+		{"下一页", "model-six"},
+		{"下一页", "model-eleven"},
 	}
 	for _, step := range commands {
 		event.Content = step.command
@@ -79,16 +79,29 @@ func TestAIChoicePagesUseOneButtonPerRowWithinQQRowLimit(t *testing.T) {
 		if !ok || len(keyboard.Content.Rows) > 5 || len(keyboard.Content.Rows) == 0 {
 			t.Fatalf("invalid keyboard for %q: %+v", step.command, keyboard)
 		}
+		choiceCount := 0
 		for _, row := range keyboard.Content.Rows {
-			if len(row.Buttons) != 1 {
-				t.Fatalf("expected single-column buttons: %+v", row)
+			if len(row.Buttons) > 2 || len(row.Buttons) == 0 {
+				t.Fatalf("expected at most two buttons per row: %+v", row)
 			}
+			for _, button := range row.Buttons {
+				if button.Action.Data != "上一页" && button.Action.Data != "下一页" && button.Action.Data != "停" {
+					choiceCount++
+				}
+			}
+		}
+		wantCount := 5
+		if strings.HasSuffix(step.want, "eleven") {
+			wantCount = 1
+		}
+		if choiceCount != wantCount {
+			t.Fatalf("choice count = %d, want %d", choiceCount, wantCount)
 		}
 		if got := keyboard.Content.Rows[0].Buttons[0].Action.Data; got != step.want {
 			t.Fatalf("after %q first choice = %q, want %q", step.command, got, step.want)
 		}
 	}
-	event.Content = "model-five"
+	event.Content = "model-eleven"
 	answer, err := h.Handle(context.Background(), event)
 	if err != nil || answer != "answer" {
 		t.Fatalf("model selection: %q %v", answer, err)

@@ -14,7 +14,7 @@ import (
 
 const aiSessionTTL = 30 * time.Minute
 const aiMaxHistoryMessages = 40
-const aiChoicesPerPage = 2
+const aiChoicesPerPage = 5
 
 type AIAPI interface {
 	ListAIGroups(context.Context, newapi.AIRequest) ([]newapi.AIGroup, error)
